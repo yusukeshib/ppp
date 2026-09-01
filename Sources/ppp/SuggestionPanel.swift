@@ -74,7 +74,7 @@ private final class CopyControl: NSView {
 
 @MainActor
 final class SuggestionPanel: NSPanel {
-    var onClose: (() -> Void)?
+    var onMinimize: (() -> Void)?
 
     private let headingLabel = NSTextField(labelWithString: "ppp")
     private let feedbackLabel = NSTextField(wrappingLabelWithString: "")
@@ -82,7 +82,7 @@ final class SuggestionPanel: NSPanel {
     private let progressIndicator = NSProgressIndicator()
     private let progressLabel = NSTextField(labelWithString: L10n.string("Reviewing selection…"))
     private let progressRow = NSStackView()
-    private let closeButton = NSButton()
+    private let minimizeButton = NSButton()
     private let copyButton = CopyControl()
     private let bodyScrollView = NSScrollView()
     private let bodyStack = FlippedStackView()
@@ -125,19 +125,19 @@ final class SuggestionPanel: NSPanel {
         headingLabel.font = .systemFont(ofSize: 11, weight: .semibold)
         headingLabel.textColor = .secondaryLabelColor
 
-        closeButton.image = NSImage(
-            systemSymbolName: "xmark.circle.fill",
-            accessibilityDescription: L10n.string("Close")
+        minimizeButton.image = NSImage(
+            systemSymbolName: "minus.circle.fill",
+            accessibilityDescription: L10n.string("Minimize")
         )
-        closeButton.imagePosition = .imageOnly
-        closeButton.imageScaling = .scaleProportionallyDown
-        closeButton.contentTintColor = .tertiaryLabelColor
-        closeButton.isBordered = false
-        closeButton.target = self
-        closeButton.action = #selector(closePanel)
-        closeButton.toolTip = L10n.string("Close")
-        closeButton.translatesAutoresizingMaskIntoConstraints = false
-        closeButton.setContentHuggingPriority(.required, for: .horizontal)
+        minimizeButton.imagePosition = .imageOnly
+        minimizeButton.imageScaling = .scaleProportionallyDown
+        minimizeButton.contentTintColor = .tertiaryLabelColor
+        minimizeButton.isBordered = false
+        minimizeButton.target = self
+        minimizeButton.action = #selector(minimizePanel)
+        minimizeButton.toolTip = L10n.string("Minimize")
+        minimizeButton.translatesAutoresizingMaskIntoConstraints = false
+        minimizeButton.setContentHuggingPriority(.required, for: .horizontal)
 
         progressIndicator.style = .spinning
         progressIndicator.controlSize = .small
@@ -170,7 +170,7 @@ final class SuggestionPanel: NSPanel {
         }
         copyButton.toolTip = L10n.string("Copy the result")
 
-        let headerRow = NSStackView(views: [headingLabel, NSView(), closeButton])
+        let headerRow = NSStackView(views: [headingLabel, NSView(), minimizeButton])
         headerRow.orientation = .horizontal
         headerRow.alignment = .centerY
         headerRow.spacing = 6
@@ -211,8 +211,8 @@ final class SuggestionPanel: NSPanel {
             stack.bottomAnchor.constraint(equalTo: effect.bottomAnchor, constant: -12),
             headerRow.widthAnchor.constraint(equalToConstant: 352),
             bodyScrollView.widthAnchor.constraint(equalToConstant: 352),
-            closeButton.widthAnchor.constraint(equalToConstant: 16),
-            closeButton.heightAnchor.constraint(equalToConstant: 16),
+            minimizeButton.widthAnchor.constraint(equalToConstant: 16),
+            minimizeButton.heightAnchor.constraint(equalToConstant: 16),
             progressIndicator.widthAnchor.constraint(equalToConstant: 14),
             progressIndicator.heightAnchor.constraint(equalToConstant: 14),
             feedbackLabel.widthAnchor.constraint(equalToConstant: 352),
@@ -326,10 +326,10 @@ final class SuggestionPanel: NSPanel {
         orderFrontRegardless()
     }
 
-    @objc private func closePanel() {
+    @objc private func minimizePanel() {
         progressIndicator.stopAnimation(nil)
-        if let onClose {
-            onClose()
+        if let onMinimize {
+            onMinimize()
         } else {
             orderOut(nil)
         }

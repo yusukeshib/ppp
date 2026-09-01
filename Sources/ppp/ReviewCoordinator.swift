@@ -2,16 +2,22 @@ import Foundation
 
 @MainActor
 final class ReviewCoordinator {
+    private enum Presentation {
+        case hidden
+        case minimized
+        case expanded
+    }
+
     private let settings: AppSettings
     private let panel: SuggestionPanel
     private let triggerPanel: SelectionTriggerPanel
     private let client = ReviewClient()
 
     private var reviewTask: Task<Void, Never>?
-    private var unavailableTask: Task<Void, Never>?
     private var revision = 0
     private var lastCaptureSignature: String?
-    private var pendingCapture: CapturedText?
+    private var activeCapture: CapturedText?
+    private var presentation = Presentation.hidden
     private var lastRequestKey: String?
     private var cache: [String: ReviewResult] = [:]
     private var cacheOrder: [String] = []
@@ -27,8 +33,8 @@ final class ReviewCoordinator {
         self.settings = settings
         self.panel = panel
         self.triggerPanel = triggerPanel
-        panel.onClose = { [weak self] in
-            self?.dismiss()
+        panel.onMinimize = { [weak self] in
+            self?.minimize()
         }
         triggerPanel.onReview = { [weak self] in
             self?.reviewPendingSelection()
@@ -36,9 +42,6 @@ final class ReviewCoordinator {
     }
 
     func receive(_ capture: CapturedText) {
-        unavailableTask?.cancel()
-        unavailableTask = nil
-
         let text = reviewableText(from: capture.text)
         guard !text.isEmpty else {
             lastCaptureSignature = nil
@@ -55,11 +58,12 @@ final class ReviewCoordinator {
         reviewTask?.cancel()
         reviewTask = nil
         lastRequestKey = nil
-        pendingCapture = CapturedText(
+        activeCapture = CapturedText(
             text: text,
             caretBounds: capture.caretBounds,
             applicationName: capture.applicationName
         )
+        presentation = .minimized
         panel.orderOut(nil)
         triggerPanel.show(
             near: capture.caretBounds,
@@ -69,35 +73,27 @@ final class ReviewCoordinator {
 
     func selectionCleared() {
         lastCaptureSignature = nil
-        pendingCapture = nil
+        activeCapture = nil
         triggerPanel.orderOut(nil)
+        if presentation == .minimized {
+            presentation = .hidden
+        }
     }
 
     func temporarilyUnavailable() {
-        lastCaptureSignature = nil
-        pendingCapture = nil
-        triggerPanel.orderOut(nil)
-        unavailableTask?.cancel()
-        unavailableTask = Task { [weak self] in
-            do {
-                try await Task.sleep(nanoseconds: 1_500_000_000)
-                guard !Task.isCancelled else { return }
-                self?.dismiss()
-            } catch {
-                // A new valid capture arrived before the grace period elapsed.
-            }
-        }
+        // Focus and application changes briefly make the accessibility selection
+        // unreadable. Keep the current presentation until a capture confirms a
+        // new selection or selectionCleared() confirms that it is empty.
     }
 
     func dismiss() {
         revision &+= 1
         reviewTask?.cancel()
         reviewTask = nil
-        unavailableTask?.cancel()
-        unavailableTask = nil
         lastCaptureSignature = nil
-        pendingCapture = nil
+        activeCapture = nil
         lastRequestKey = nil
+        presentation = .hidden
         triggerPanel.orderOut(nil)
         panel.orderOut(nil)
     }
@@ -109,9 +105,9 @@ final class ReviewCoordinator {
     }
 
     private func reviewPendingSelection() {
-        guard let capture = pendingCapture else { return }
-        pendingCapture = nil
+        guard let capture = activeCapture else { return }
         triggerPanel.orderOut(nil)
+        presentation = .expanded
 
         let currentRevision = revision
         let promptProfile = settings.selectedPrompt
@@ -187,7 +183,7 @@ final class ReviewCoordinator {
             if cached.shouldDisplay {
                 panel.show(result: cached, near: capture.caretBounds, heading: heading)
             } else {
-                panel.orderOut(nil)
+                minimize()
             }
             return
         }
@@ -230,7 +226,7 @@ final class ReviewCoordinator {
                 case .final(let result):
                     store(result, for: requestKey)
                     guard result.shouldDisplay else {
-                        panel.orderOut(nil)
+                        minimize()
                         return
                     }
                     panel.show(
@@ -255,6 +251,24 @@ final class ReviewCoordinator {
                 heading: L10n.string("ppp Error")
             )
         }
+    }
+
+    private func minimize() {
+        guard let capture = activeCapture else {
+            dismiss()
+            return
+        }
+
+        revision &+= 1
+        reviewTask?.cancel()
+        reviewTask = nil
+        lastRequestKey = nil
+        presentation = .minimized
+        panel.orderOut(nil)
+        triggerPanel.show(
+            near: capture.caretBounds,
+            promptName: settings.selectedPrompt.name
+        )
     }
 
     private func reviewableText(from value: String) -> String {
