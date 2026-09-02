@@ -13,6 +13,7 @@ final class AccessibilityTextMonitor {
     private var workspaceObserver: NSObjectProtocol?
     private var globalEventMonitor: Any?
     private var pendingCapture: DispatchWorkItem?
+    private var pendingActivationRefresh: DispatchWorkItem?
     private var pointerDownLocation: NSPoint?
     private var pendingPointerAnchor: CGRect?
     private var observedPID: pid_t?
@@ -36,6 +37,7 @@ final class AccessibilityTextMonitor {
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.attachToFrontmostApplication()
+                self?.scheduleActivationRefresh()
             }
         }
 
@@ -80,6 +82,8 @@ final class AccessibilityTextMonitor {
     func stop() {
         pendingCapture?.cancel()
         pendingCapture = nil
+        pendingActivationRefresh?.cancel()
+        pendingActivationRefresh = nil
         pointerDownLocation = nil
         pendingPointerAnchor = nil
 
@@ -212,6 +216,27 @@ final class AccessibilityTextMonitor {
         scheduleCapture()
     }
 
+    private func scheduleActivationRefresh() {
+        pendingActivationRefresh?.cancel()
+        guard let expectedPID = NSWorkspace.shared.frontmostApplication?.processIdentifier,
+              expectedPID != ProcessInfo.processInfo.processIdentifier
+        else {
+            pendingActivationRefresh = nil
+            return
+        }
+
+        // Native text views can restore their first responder and AX selection
+        // after the application-activation notification has already fired.
+        let work = DispatchWorkItem { [weak self] in
+            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == expectedPID else {
+                return
+            }
+            self?.attachToFrontmostApplication()
+        }
+        pendingActivationRefresh = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
+    }
+
     private func scheduleCapture() {
         pendingCapture?.cancel()
         let work = DispatchWorkItem { [weak self] in
@@ -243,6 +268,9 @@ final class AccessibilityTextMonitor {
             onSelectionCleared?()
             return
         }
+
+        pendingActivationRefresh?.cancel()
+        pendingActivationRefresh = nil
 
         let application = observedPID.flatMap { NSRunningApplication(processIdentifier: $0) }
         let appName = application?.localizedName
