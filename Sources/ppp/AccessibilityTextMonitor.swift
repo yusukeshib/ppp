@@ -13,6 +13,7 @@ final class AccessibilityTextMonitor {
     private var workspaceObserver: NSObjectProtocol?
     private var globalEventMonitor: Any?
     private var pendingCapture: DispatchWorkItem?
+    private var pointerDownLocation: NSPoint?
     private var pendingPointerAnchor: CGRect?
     private var observedPID: pid_t?
 
@@ -39,15 +40,33 @@ final class AccessibilityTextMonitor {
         }
 
         globalEventMonitor = NSEvent.addGlobalMonitorForEvents(
-            matching: [.keyUp, .leftMouseUp, .rightMouseUp]
+            matching: [.keyUp, .leftMouseDown, .leftMouseUp, .rightMouseUp]
         ) { [weak self] event in
+            let pointerLocation = NSEvent.mouseLocation
             Task { @MainActor in
-                if event.type == .leftMouseUp {
-                    self?.pendingPointerAnchor = PanelPositioning.accessibilityRect(
-                        atAppKitPoint: NSEvent.mouseLocation
-                    )
+                guard let self else { return }
+
+                if event.type == .leftMouseDown {
+                    self.pointerDownLocation = pointerLocation
+                    self.pendingPointerAnchor = nil
+                    return
                 }
-                self?.scheduleCapture()
+
+                if event.type == .leftMouseUp {
+                    if let pointerDownLocation = self.pointerDownLocation,
+                       abs(pointerLocation.x - pointerDownLocation.x) >= 3 ||
+                       abs(pointerLocation.y - pointerDownLocation.y) >= 3 {
+                        self.pendingPointerAnchor = PanelPositioning.accessibilityRect(
+                            atAppKitPoint: pointerLocation
+                        )
+                    } else {
+                        self.pendingPointerAnchor = nil
+                    }
+                } else {
+                    self.pendingPointerAnchor = nil
+                }
+                self.pointerDownLocation = nil
+                self.scheduleCapture()
             }
         }
 
@@ -61,6 +80,7 @@ final class AccessibilityTextMonitor {
     func stop() {
         pendingCapture?.cancel()
         pendingCapture = nil
+        pointerDownLocation = nil
         pendingPointerAnchor = nil
 
         if let workspaceObserver {
@@ -229,8 +249,8 @@ final class AccessibilityTextMonitor {
         onCapture?(
             CapturedText(
                 text: text,
-                caretBounds: caretBounds(of: element)
-                    ?? pointerAnchor
+                caretBounds: pointerAnchor
+                    ?? caretBounds(of: element)
                     ?? elementBounds(of: element),
                 applicationName: appName
             )

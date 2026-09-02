@@ -8,6 +8,18 @@ final class ReviewCoordinator {
         case expanded
     }
 
+    private struct RestorableReview {
+        let text: String
+        let applicationName: String?
+        let anchor: CGRect?
+        let result: ReviewResult
+        let heading: String
+
+        func matches(_ capture: CapturedText) -> Bool {
+            text == capture.text && applicationName == capture.applicationName
+        }
+    }
+
     private let settings: AppSettings
     private let panel: SuggestionPanel
     private let triggerPanel: SelectionTriggerPanel
@@ -17,7 +29,9 @@ final class ReviewCoordinator {
     private var revision = 0
     private var lastCaptureSignature: String?
     private var activeCapture: CapturedText?
+    private var selectionIsActive = false
     private var presentation = Presentation.hidden
+    private var restorableReview: RestorableReview?
     private var lastRequestKey: String?
     private var cache: [String: ReviewResult] = [:]
     private var cacheOrder: [String] = []
@@ -33,9 +47,6 @@ final class ReviewCoordinator {
         self.settings = settings
         self.panel = panel
         self.triggerPanel = triggerPanel
-        panel.onMinimize = { [weak self] in
-            self?.minimize()
-        }
         triggerPanel.onReview = { [weak self] in
             self?.reviewPendingSelection()
         }
@@ -48,21 +59,45 @@ final class ReviewCoordinator {
             return
         }
 
+        let normalizedCapture = CapturedText(
+            text: text,
+            caretBounds: capture.caretBounds,
+            applicationName: capture.applicationName
+        )
         let anchor = capture.caretBounds
             .map { "\(Int($0.minX)),\(Int($0.minY))" } ?? ""
         let signature = [capture.applicationName ?? "", anchor, text].joined(separator: "\u{1F}")
+
+        if !selectionIsActive,
+           let restorableReview,
+           restorableReview.matches(normalizedCapture) {
+            revision &+= 1
+            reviewTask?.cancel()
+            reviewTask = nil
+            lastRequestKey = nil
+            lastCaptureSignature = signature
+            activeCapture = normalizedCapture
+            selectionIsActive = true
+            presentation = .expanded
+            triggerPanel.orderOut(nil)
+            panel.show(
+                result: restorableReview.result,
+                near: restorableReview.anchor ?? capture.caretBounds,
+                heading: restorableReview.heading
+            )
+            return
+        }
+
+        selectionIsActive = true
         guard signature != lastCaptureSignature else { return }
         lastCaptureSignature = signature
+        restorableReview = nil
 
         revision &+= 1
         reviewTask?.cancel()
         reviewTask = nil
         lastRequestKey = nil
-        activeCapture = CapturedText(
-            text: text,
-            caretBounds: capture.caretBounds,
-            applicationName: capture.applicationName
-        )
+        activeCapture = normalizedCapture
         presentation = .minimized
         panel.orderOut(nil)
         triggerPanel.show(
@@ -72,12 +107,16 @@ final class ReviewCoordinator {
     }
 
     func selectionCleared() {
+        revision &+= 1
+        reviewTask?.cancel()
+        reviewTask = nil
         lastCaptureSignature = nil
         activeCapture = nil
+        selectionIsActive = false
+        lastRequestKey = nil
+        presentation = .hidden
         triggerPanel.orderOut(nil)
-        if presentation == .minimized {
-            presentation = .hidden
-        }
+        panel.orderOut(nil)
     }
 
     func temporarilyUnavailable() {
@@ -92,6 +131,8 @@ final class ReviewCoordinator {
         reviewTask = nil
         lastCaptureSignature = nil
         activeCapture = nil
+        selectionIsActive = false
+        restorableReview = nil
         lastRequestKey = nil
         presentation = .hidden
         triggerPanel.orderOut(nil)
@@ -106,6 +147,7 @@ final class ReviewCoordinator {
 
     private func reviewPendingSelection() {
         guard let capture = activeCapture else { return }
+        restorableReview = nil
         triggerPanel.orderOut(nil)
         presentation = .expanded
 
@@ -181,6 +223,13 @@ final class ReviewCoordinator {
 
         if let cached = cache[requestKey] {
             if cached.shouldDisplay {
+                restorableReview = RestorableReview(
+                    text: text,
+                    applicationName: capture.applicationName,
+                    anchor: capture.caretBounds,
+                    result: cached,
+                    heading: heading
+                )
                 panel.show(result: cached, near: capture.caretBounds, heading: heading)
             } else {
                 minimize()
@@ -229,6 +278,13 @@ final class ReviewCoordinator {
                         minimize()
                         return
                     }
+                    restorableReview = RestorableReview(
+                        text: text,
+                        applicationName: capture.applicationName,
+                        anchor: capture.caretBounds,
+                        result: result,
+                        heading: heading
+                    )
                     panel.show(
                         result: result,
                         near: capture.caretBounds,
@@ -263,6 +319,7 @@ final class ReviewCoordinator {
         reviewTask?.cancel()
         reviewTask = nil
         lastRequestKey = nil
+        restorableReview = nil
         presentation = .minimized
         panel.orderOut(nil)
         triggerPanel.show(

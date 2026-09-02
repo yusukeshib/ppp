@@ -74,15 +74,12 @@ private final class CopyControl: NSView {
 
 @MainActor
 final class SuggestionPanel: NSPanel {
-    var onMinimize: (() -> Void)?
-
     private let headingLabel = NSTextField(labelWithString: "ppp")
     private let feedbackLabel = NSTextField(wrappingLabelWithString: "")
     private let suggestionLabel = NSTextField(wrappingLabelWithString: "")
     private let progressIndicator = NSProgressIndicator()
     private let progressLabel = NSTextField(labelWithString: L10n.string("Reviewing selection…"))
     private let progressRow = NSStackView()
-    private let minimizeButton = NSButton()
     private let copyButton = CopyControl()
     private let bodyScrollView = NSScrollView()
     private let bodyStack = FlippedStackView()
@@ -125,20 +122,6 @@ final class SuggestionPanel: NSPanel {
         headingLabel.font = .systemFont(ofSize: 11, weight: .semibold)
         headingLabel.textColor = .secondaryLabelColor
 
-        minimizeButton.image = NSImage(
-            systemSymbolName: "minus.circle.fill",
-            accessibilityDescription: L10n.string("Minimize")
-        )
-        minimizeButton.imagePosition = .imageOnly
-        minimizeButton.imageScaling = .scaleProportionallyDown
-        minimizeButton.contentTintColor = .tertiaryLabelColor
-        minimizeButton.isBordered = false
-        minimizeButton.target = self
-        minimizeButton.action = #selector(minimizePanel)
-        minimizeButton.toolTip = L10n.string("Minimize")
-        minimizeButton.translatesAutoresizingMaskIntoConstraints = false
-        minimizeButton.setContentHuggingPriority(.required, for: .horizontal)
-
         progressIndicator.style = .spinning
         progressIndicator.controlSize = .small
         progressIndicator.isIndeterminate = true
@@ -170,7 +153,7 @@ final class SuggestionPanel: NSPanel {
         }
         copyButton.toolTip = L10n.string("Copy the result")
 
-        let headerRow = NSStackView(views: [headingLabel, NSView(), minimizeButton])
+        let headerRow = NSStackView(views: [headingLabel])
         headerRow.orientation = .horizontal
         headerRow.alignment = .centerY
         headerRow.spacing = 6
@@ -211,8 +194,6 @@ final class SuggestionPanel: NSPanel {
             stack.bottomAnchor.constraint(equalTo: effect.bottomAnchor, constant: -12),
             headerRow.widthAnchor.constraint(equalToConstant: 352),
             bodyScrollView.widthAnchor.constraint(equalToConstant: 352),
-            minimizeButton.widthAnchor.constraint(equalToConstant: 16),
-            minimizeButton.heightAnchor.constraint(equalToConstant: 16),
             progressIndicator.widthAnchor.constraint(equalToConstant: 14),
             progressIndicator.heightAnchor.constraint(equalToConstant: 14),
             feedbackLabel.widthAnchor.constraint(equalToConstant: 352),
@@ -324,15 +305,6 @@ final class SuggestionPanel: NSPanel {
             )
         )
         orderFrontRegardless()
-    }
-
-    @objc private func minimizePanel() {
-        progressIndicator.stopAnimation(nil)
-        if let onMinimize {
-            onMinimize()
-        } else {
-            orderOut(nil)
-        }
     }
 
     private func copySuggestion() {
