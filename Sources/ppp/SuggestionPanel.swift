@@ -4,6 +4,10 @@ private final class FlippedStackView: NSStackView {
     override var isFlipped: Bool { true }
 }
 
+private final class PromptPopUpButton: NSPopUpButton {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
 private final class CopyControl: NSView {
     var onClick: (() -> Void)?
 
@@ -74,7 +78,10 @@ private final class CopyControl: NSView {
 
 @MainActor
 final class SuggestionPanel: NSPanel {
+    var onPromptSelection: ((UUID) -> Void)?
+
     private let headingLabel = NSTextField(labelWithString: "ppp")
+    private let promptPopUp = PromptPopUpButton(frame: .zero, pullsDown: false)
     private let feedbackLabel = NSTextField(wrappingLabelWithString: "")
     private let suggestionLabel = NSTextField(wrappingLabelWithString: "")
     private let progressIndicator = NSProgressIndicator()
@@ -122,6 +129,16 @@ final class SuggestionPanel: NSPanel {
         headingLabel.font = .systemFont(ofSize: 11, weight: .semibold)
         headingLabel.textColor = .secondaryLabelColor
 
+        promptPopUp.target = self
+        promptPopUp.action = #selector(promptSelectionChanged)
+        promptPopUp.controlSize = .mini
+        promptPopUp.font = .systemFont(ofSize: 11, weight: .semibold)
+        promptPopUp.isBordered = false
+        promptPopUp.contentTintColor = .secondaryLabelColor
+        promptPopUp.cell?.lineBreakMode = .byTruncatingTail
+        promptPopUp.setAccessibilityLabel(L10n.string("Prompts"))
+        promptPopUp.isHidden = true
+
         progressIndicator.style = .spinning
         progressIndicator.controlSize = .small
         progressIndicator.isIndeterminate = true
@@ -153,7 +170,7 @@ final class SuggestionPanel: NSPanel {
         }
         copyButton.toolTip = L10n.string("Copy the result")
 
-        let headerRow = NSStackView(views: [headingLabel])
+        let headerRow = NSStackView(views: [headingLabel, promptPopUp])
         headerRow.orientation = .horizontal
         headerRow.alignment = .centerY
         headerRow.spacing = 6
@@ -193,6 +210,7 @@ final class SuggestionPanel: NSPanel {
             stack.topAnchor.constraint(equalTo: effect.topAnchor, constant: 12),
             stack.bottomAnchor.constraint(equalTo: effect.bottomAnchor, constant: -12),
             headerRow.widthAnchor.constraint(equalToConstant: 352),
+            promptPopUp.widthAnchor.constraint(lessThanOrEqualToConstant: 180),
             bodyScrollView.widthAnchor.constraint(equalToConstant: 352),
             progressIndicator.widthAnchor.constraint(equalToConstant: 14),
             progressIndicator.heightAnchor.constraint(equalToConstant: 14),
@@ -204,6 +222,18 @@ final class SuggestionPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 
+    func setPromptProfiles(_ profiles: [PromptProfile], selectedPromptID: UUID) {
+        promptPopUp.removeAllItems()
+        for profile in profiles {
+            let item = NSMenuItem(title: profile.name, action: nil, keyEquivalent: "")
+            item.representedObject = profile.id.uuidString
+            promptPopUp.menu?.addItem(item)
+        }
+        if let selectedIndex = profiles.firstIndex(where: { $0.id == selectedPromptID }) {
+            promptPopUp.selectItem(at: selectedIndex)
+        }
+    }
+
     /// Draws a response that is still arriving.
     ///
     /// The scroll position is left alone so text streaming in below the fold
@@ -214,7 +244,7 @@ final class SuggestionPanel: NSPanel {
         near accessibilityRect: CGRect?,
         heading: String = "ppp"
     ) {
-        headingLabel.stringValue = heading
+        showHeader(heading, usesPromptPicker: true)
         let feedback = partial.feedback.trimmingCharacters(in: .whitespacesAndNewlines)
         let suggestion = partial.suggestion.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -238,11 +268,12 @@ final class SuggestionPanel: NSPanel {
         result: ReviewResult,
         near accessibilityRect: CGRect?,
         heading: String = "ppp",
-        preservingScroll: Bool = false
+        preservingScroll: Bool = false,
+        usesPromptPicker: Bool = true
     ) {
         progressIndicator.stopAnimation(nil)
         progressRow.isHidden = true
-        headingLabel.stringValue = heading
+        showHeader(heading, usesPromptPicker: usesPromptPicker)
         let feedback = result.feedback.trimmingCharacters(in: .whitespacesAndNewlines)
         feedbackLabel.attributedStringValue = FeedbackMarkdown.render(feedback)
         feedbackLabel.isHidden = feedback.isEmpty
@@ -255,7 +286,7 @@ final class SuggestionPanel: NSPanel {
     }
 
     func showLoading(near accessibilityRect: CGRect?, heading: String = "ppp") {
-        headingLabel.stringValue = heading
+        showHeader(heading, usesPromptPicker: true)
         feedbackLabel.isHidden = true
         suggestionLabel.isHidden = true
         copyButton.isHidden = true
@@ -269,6 +300,19 @@ final class SuggestionPanel: NSPanel {
     override func orderOut(_ sender: Any?) {
         reservedPlacementHeight = nil
         super.orderOut(sender)
+    }
+
+    private func showHeader(_ heading: String, usesPromptPicker: Bool) {
+        headingLabel.stringValue = heading
+        headingLabel.isHidden = usesPromptPicker
+        promptPopUp.isHidden = !usesPromptPicker
+    }
+
+    @objc private func promptSelectionChanged() {
+        guard let value = promptPopUp.selectedItem?.representedObject as? String,
+              let id = UUID(uuidString: value)
+        else { return }
+        onPromptSelection?(id)
     }
 
     private func present(near accessibilityRect: CGRect?, resetScroll: Bool = true) {

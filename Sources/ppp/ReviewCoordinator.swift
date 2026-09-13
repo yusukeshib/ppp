@@ -50,8 +50,8 @@ final class ReviewCoordinator {
         triggerPanel.onReview = { [weak self] in
             self?.reviewPendingSelection()
         }
-        triggerPanel.onPromptSelection = { [weak self] id in
-            self?.settings.selectedPromptID = id
+        panel.onPromptSelection = { [weak self] id in
+            self?.selectPromptAndReview(id)
         }
     }
 
@@ -83,6 +83,10 @@ final class ReviewCoordinator {
             selectionIsActive = true
             presentation = .expanded
             triggerPanel.orderOut(nil)
+            panel.setPromptProfiles(
+                settings.promptProfiles,
+                selectedPromptID: settings.selectedPromptID
+            )
             panel.show(
                 result: restorableReview.result,
                 near: restorableReview.anchor ?? capture.caretBounds,
@@ -105,8 +109,7 @@ final class ReviewCoordinator {
         panel.orderOut(nil)
         triggerPanel.show(
             near: capture.caretBounds,
-            profiles: settings.promptProfiles,
-            selectedPromptID: settings.selectedPromptID
+            promptName: settings.selectedPrompt.name
         )
     }
 
@@ -157,6 +160,10 @@ final class ReviewCoordinator {
 
         let currentRevision = revision
         let promptProfile = settings.selectedPrompt
+        panel.setPromptProfiles(
+            settings.promptProfiles,
+            selectedPromptID: promptProfile.id
+        )
         panel.showLoading(near: capture.caretBounds, heading: promptProfile.name)
         reviewTask = Task { [weak self] in
             await self?.review(
@@ -183,7 +190,8 @@ final class ReviewCoordinator {
             panel.show(
                 result: ReviewResult(feedback: text, suggestion: ""),
                 near: capture.caretBounds,
-                heading: source
+                heading: source,
+                usesPromptPicker: false
             )
             return
         }
@@ -308,7 +316,8 @@ final class ReviewCoordinator {
                     suggestion: ""
                 ),
                 near: capture.caretBounds,
-                heading: L10n.string("ppp Error")
+                heading: L10n.string("ppp Error"),
+                usesPromptPicker: false
             )
         }
     }
@@ -328,9 +337,18 @@ final class ReviewCoordinator {
         panel.orderOut(nil)
         triggerPanel.show(
             near: capture.caretBounds,
-            profiles: settings.promptProfiles,
-            selectedPromptID: settings.selectedPromptID
+            promptName: settings.selectedPrompt.name
         )
+    }
+
+    private func selectPromptAndReview(_ id: UUID) {
+        guard presentation == .expanded, id != settings.selectedPromptID else { return }
+        settings.selectedPromptID = id
+        revision &+= 1
+        reviewTask?.cancel()
+        reviewTask = nil
+        lastRequestKey = nil
+        reviewPendingSelection()
     }
 
     private func reviewableText(from value: String) -> String {
