@@ -50,6 +50,9 @@ final class ReviewCoordinator {
         triggerPanel.onReview = { [weak self] in
             self?.reviewPendingSelection()
         }
+        triggerPanel.onPromptSelection = { [weak self] id in
+            self?.settings.selectedPromptID = id
+        }
     }
 
     func receive(_ capture: CapturedText) {
@@ -102,7 +105,8 @@ final class ReviewCoordinator {
         panel.orderOut(nil)
         triggerPanel.show(
             near: capture.caretBounds,
-            promptName: settings.selectedPrompt.name
+            profiles: settings.promptProfiles,
+            selectedPromptID: settings.selectedPromptID
         )
     }
 
@@ -324,7 +328,8 @@ final class ReviewCoordinator {
         panel.orderOut(nil)
         triggerPanel.show(
             near: capture.caretBounds,
-            promptName: settings.selectedPrompt.name
+            profiles: settings.promptProfiles,
+            selectedPromptID: settings.selectedPromptID
         )
     }
 
