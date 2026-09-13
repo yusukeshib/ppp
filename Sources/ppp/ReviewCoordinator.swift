@@ -50,6 +50,9 @@ final class ReviewCoordinator {
         triggerPanel.onReview = { [weak self] in
             self?.reviewPendingSelection()
         }
+        triggerPanel.onPromptSelection = { [weak self] id in
+            self?.settings.selectedPromptID = id
+        }
         panel.onPromptSelection = { [weak self] id in
             self?.selectPromptAndReview(id)
         }
@@ -109,7 +112,8 @@ final class ReviewCoordinator {
         panel.orderOut(nil)
         triggerPanel.show(
             near: capture.caretBounds,
-            promptName: settings.selectedPrompt.name
+            profiles: settings.promptProfiles,
+            selectedPromptID: settings.selectedPromptID
         )
     }
 
@@ -337,7 +341,8 @@ final class ReviewCoordinator {
         panel.orderOut(nil)
         triggerPanel.show(
             near: capture.caretBounds,
-            promptName: settings.selectedPrompt.name
+            profiles: settings.promptProfiles,
+            selectedPromptID: settings.selectedPromptID
         )
     }
 

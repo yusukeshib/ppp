@@ -4,90 +4,21 @@ private final class FlippedStackView: NSStackView {
     override var isFlipped: Bool { true }
 }
 
-private final class PromptPopUpButton: NSPopUpButton {
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-}
-
-private final class CopyControl: NSView {
-    var onClick: (() -> Void)?
-
-    private let icon = NSImageView()
-    private let label = NSTextField(labelWithString: L10n.string("Copy result"))
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        wantsLayer = true
-        layer?.cornerRadius = 6
-        layer?.borderWidth = 1
-
-        icon.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil)
-        icon.contentTintColor = .labelColor
-        icon.translatesAutoresizingMaskIntoConstraints = false
-
-        label.font = .systemFont(ofSize: 11, weight: .semibold)
-        label.textColor = .labelColor
-
-        let row = NSStackView(views: [icon, label])
-        row.orientation = .horizontal
-        row.alignment = .centerY
-        row.spacing = 5
-        row.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(row)
-
-        NSLayoutConstraint.activate([
-            row.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
-            row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-            row.topAnchor.constraint(equalTo: topAnchor, constant: 5),
-            row.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -5),
-            icon.widthAnchor.constraint(equalToConstant: 13),
-            icon.heightAnchor.constraint(equalToConstant: 13)
-        ])
-        updateColors()
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-
-    override func mouseDown(with event: NSEvent) {
-        alphaValue = 0.65
-        onClick?()
-        DispatchQueue.main.async { [weak self] in self?.alphaValue = 1 }
-    }
-
-    override func resetCursorRects() {
-        addCursorRect(bounds, cursor: .pointingHand)
-    }
-
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        updateColors()
-    }
-
-    func setTitle(_ value: String) {
-        label.stringValue = value
-    }
-
-    private func updateColors() {
-        layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.1).cgColor
-        layer?.borderColor = NSColor.labelColor.withAlphaComponent(0.3).cgColor
-    }
-}
-
 @MainActor
 final class SuggestionPanel: NSPanel {
     var onPromptSelection: ((UUID) -> Void)?
 
     private let headingLabel = NSTextField(labelWithString: "ppp")
-    private let promptPopUp = PromptPopUpButton(frame: .zero, pullsDown: false)
+    private let promptPopUp = PromptPopUpButton()
     private let feedbackLabel = NSTextField(wrappingLabelWithString: "")
     private let suggestionLabel = NSTextField(wrappingLabelWithString: "")
     private let progressIndicator = NSProgressIndicator()
     private let progressLabel = NSTextField(labelWithString: L10n.string("Reviewing selection…"))
     private let progressRow = NSStackView()
-    private let copyButton = CopyControl()
+    private let copyButton = ActionControl(
+        title: L10n.string("Copy result"),
+        systemSymbol: "doc.on.doc"
+    )
     private let bodyScrollView = NSScrollView()
     private let bodyStack = FlippedStackView()
     private let stack = NSStackView()
@@ -131,12 +62,6 @@ final class SuggestionPanel: NSPanel {
 
         promptPopUp.target = self
         promptPopUp.action = #selector(promptSelectionChanged)
-        promptPopUp.controlSize = .mini
-        promptPopUp.font = .systemFont(ofSize: 11, weight: .semibold)
-        promptPopUp.isBordered = false
-        promptPopUp.contentTintColor = .secondaryLabelColor
-        promptPopUp.cell?.lineBreakMode = .byTruncatingTail
-        promptPopUp.setAccessibilityLabel(L10n.string("Prompts"))
         promptPopUp.isHidden = true
 
         progressIndicator.style = .spinning
@@ -223,15 +148,7 @@ final class SuggestionPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 
     func setPromptProfiles(_ profiles: [PromptProfile], selectedPromptID: UUID) {
-        promptPopUp.removeAllItems()
-        for profile in profiles {
-            let item = NSMenuItem(title: profile.name, action: nil, keyEquivalent: "")
-            item.representedObject = profile.id.uuidString
-            promptPopUp.menu?.addItem(item)
-        }
-        if let selectedIndex = profiles.firstIndex(where: { $0.id == selectedPromptID }) {
-            promptPopUp.selectItem(at: selectedIndex)
-        }
+        promptPopUp.setProfiles(profiles, selectedPromptID: selectedPromptID)
     }
 
     /// Draws a response that is still arriving.
@@ -309,9 +226,7 @@ final class SuggestionPanel: NSPanel {
     }
 
     @objc private func promptSelectionChanged() {
-        guard let value = promptPopUp.selectedItem?.representedObject as? String,
-              let id = UUID(uuidString: value)
-        else { return }
+        guard let id = promptPopUp.selectedPromptID else { return }
         onPromptSelection?(id)
     }
 

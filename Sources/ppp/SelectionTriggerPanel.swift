@@ -1,14 +1,15 @@
 import AppKit
 
-private final class ReviewButton: NSButton {
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-}
-
 @MainActor
 final class SelectionTriggerPanel: NSPanel {
     var onReview: (() -> Void)?
+    var onPromptSelection: ((UUID) -> Void)?
 
-    private let button = ReviewButton(title: "", target: nil, action: nil)
+    private let promptPopUp = PromptPopUpButton()
+    private let runControl = ActionControl(
+        title: L10n.string("Run"),
+        systemSymbol: "text.bubble"
+    )
 
     init() {
         super.init(
@@ -35,34 +36,46 @@ final class SelectionTriggerPanel: NSPanel {
         effect.layer?.masksToBounds = true
         contentView = effect
 
-        button.target = self
-        button.action = #selector(reviewSelection)
-        button.bezelStyle = .recessed
-        button.isBordered = false
-        button.font = .systemFont(ofSize: 12, weight: .semibold)
-        button.image = NSImage(systemSymbolName: "text.bubble", accessibilityDescription: nil)
-        button.imagePosition = .imageLeading
-        button.contentTintColor = .labelColor
-        button.cell?.lineBreakMode = .byTruncatingTail
-        button.translatesAutoresizingMaskIntoConstraints = false
-        effect.addSubview(button)
+        promptPopUp.target = self
+        promptPopUp.action = #selector(promptSelectionChanged)
+
+        runControl.onClick = { [weak self] in
+            self?.onReview?()
+        }
+
+        let stack = NSStackView(views: [promptPopUp, runControl])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 6
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        effect.addSubview(stack)
 
         NSLayoutConstraint.activate([
-            button.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: 8),
-            button.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -8),
-            button.topAnchor.constraint(equalTo: effect.topAnchor, constant: 5),
-            button.bottomAnchor.constraint(equalTo: effect.bottomAnchor, constant: -5)
+            stack.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: 8),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: effect.trailingAnchor, constant: -8),
+            stack.topAnchor.constraint(equalTo: effect.topAnchor, constant: 7),
+            stack.bottomAnchor.constraint(equalTo: effect.bottomAnchor, constant: -7),
+            promptPopUp.widthAnchor.constraint(lessThanOrEqualToConstant: 180)
         ])
     }
 
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 
-    func show(near accessibilityRect: CGRect?, promptName: String) {
-        button.title = promptName
-        button.toolTip = L10n.format("Run %@", promptName)
-        let width = min(max(button.intrinsicContentSize.width + 16, 88), 280)
-        let panelSize = NSSize(width: width, height: 34)
+    func show(
+        near accessibilityRect: CGRect?,
+        profiles: [PromptProfile],
+        selectedPromptID: UUID
+    ) {
+        promptPopUp.setProfiles(profiles, selectedPromptID: selectedPromptID)
+        let promptName = promptPopUp.titleOfSelectedItem ?? ""
+        runControl.toolTip = L10n.format("Run %@", promptName)
+        let contentWidth = max(
+            promptPopUp.intrinsicContentSize.width,
+            runControl.fittingSize.width
+        ) + 16
+        let width = min(max(contentWidth, 100), 196)
+        let panelSize = NSSize(width: width, height: 60)
         setContentSize(panelSize)
         setFrameOrigin(
             PanelPositioning.origin(for: panelSize, near: accessibilityRect, gap: 6)
@@ -70,8 +83,10 @@ final class SelectionTriggerPanel: NSPanel {
         orderFrontRegardless()
     }
 
-    @objc private func reviewSelection() {
-        onReview?()
+    @objc private func promptSelectionChanged() {
+        guard let id = promptPopUp.selectedPromptID else { return }
+        runControl.toolTip = L10n.format("Run %@", promptPopUp.titleOfSelectedItem ?? "")
+        onPromptSelection?(id)
     }
 
 }

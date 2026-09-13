@@ -50,6 +50,7 @@
 "Reviewing selection…" = "選択範囲を確認中…";
 "Copy the result" = "結果をコピー";
 "Copied" = "コピーしました";
+"Run" = "実行";
 "Run %@" = "%@を実行";
 
 "Captured from %@" = "%@から取得";
