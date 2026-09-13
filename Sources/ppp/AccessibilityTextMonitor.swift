@@ -55,9 +55,11 @@ final class AccessibilityTextMonitor {
                 }
 
                 if event.type == .leftMouseUp {
-                    if let pointerDownLocation = self.pointerDownLocation,
-                       abs(pointerLocation.x - pointerDownLocation.x) >= 3 ||
-                       abs(pointerLocation.y - pointerDownLocation.y) >= 3 {
+                    let dragged = self.pointerDownLocation.map {
+                        abs(pointerLocation.x - $0.x) >= 3 ||
+                            abs(pointerLocation.y - $0.y) >= 3
+                    } ?? false
+                    if dragged || event.clickCount >= 2 {
                         self.pendingPointerAnchor = PanelPositioning.accessibilityRect(
                             atAppKitPoint: pointerLocation
                         )
