@@ -65,7 +65,8 @@ final class SelectionTriggerPanel: NSPanel {
     func show(
         near accessibilityRect: CGRect?,
         profiles: [PromptProfile],
-        selectedPromptID: UUID
+        selectedPromptID: UUID,
+        reservedPlacementHeight: CGFloat? = nil
     ) {
         promptPopUp.setProfiles(profiles, selectedPromptID: selectedPromptID)
         let promptName = promptPopUp.titleOfSelectedItem ?? ""
@@ -78,7 +79,12 @@ final class SelectionTriggerPanel: NSPanel {
         let panelSize = NSSize(width: width, height: 60)
         setContentSize(panelSize)
         setFrameOrigin(
-            PanelPositioning.origin(for: panelSize, near: accessibilityRect, gap: 6)
+            PanelPositioning.origin(
+                for: panelSize,
+                near: accessibilityRect,
+                gap: 8,
+                reservedHeight: reservedPlacementHeight
+            )
         )
         orderFrontRegardless()
     }

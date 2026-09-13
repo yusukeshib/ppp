@@ -113,7 +113,8 @@ final class ReviewCoordinator {
         triggerPanel.show(
             near: capture.caretBounds,
             profiles: settings.promptProfiles,
-            selectedPromptID: settings.selectedPromptID
+            selectedPromptID: settings.selectedPromptID,
+            reservedPlacementHeight: SuggestionPanel.placementFootprint.height
         )
     }
 
@@ -342,7 +343,8 @@ final class ReviewCoordinator {
         triggerPanel.show(
             near: capture.caretBounds,
             profiles: settings.promptProfiles,
-            selectedPromptID: settings.selectedPromptID
+            selectedPromptID: settings.selectedPromptID,
+            reservedPlacementHeight: SuggestionPanel.placementFootprint.height
         )
     }
 

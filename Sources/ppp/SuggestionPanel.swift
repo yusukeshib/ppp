@@ -29,7 +29,7 @@ final class SuggestionPanel: NSPanel {
     /// placed on the same side of the caret.
     private var reservedPlacementHeight: CGFloat?
 
-    private static let maximumPanelHeight: CGFloat = 460
+    static let placementFootprint = NSSize(width: 380, height: 460)
 
     init() {
         super.init(
@@ -210,7 +210,7 @@ final class SuggestionPanel: NSPanel {
         currentSuggestion = ""
         progressRow.isHidden = false
         progressIndicator.startAnimation(nil)
-        reservedPlacementHeight = Self.maximumPanelHeight
+        reservedPlacementHeight = Self.placementFootprint.height
         present(near: accessibilityRect)
     }
 
@@ -251,8 +251,8 @@ final class SuggestionPanel: NSPanel {
         contentView?.layoutSubtreeIfNeeded()
         let fittingHeight = stack.fittingSize.height + 24
         let panelSize = NSSize(
-            width: 380,
-            height: min(max(fittingHeight, 72), Self.maximumPanelHeight)
+            width: Self.placementFootprint.width,
+            height: min(max(fittingHeight, 72), Self.placementFootprint.height)
         )
         setContentSize(panelSize)
         setFrameOrigin(
