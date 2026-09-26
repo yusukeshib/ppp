@@ -39,6 +39,7 @@ final class SelectionTriggerPanel: NSPanel {
         effect.layer?.masksToBounds = true
         contentView = effect
 
+        runButton.title = ""
         runButton.bezelStyle = .accessoryBarAction
         runButton.showsBorderOnlyWhileMouseInside = true
         runButton.target = self
