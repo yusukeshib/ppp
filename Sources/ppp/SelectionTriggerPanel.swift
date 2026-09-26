@@ -7,8 +7,8 @@ final class SelectionTriggerPanel: NSPanel {
 
     private let runButton = FirstMouseButton()
     private let menuButton = FirstMouseButton()
+    private let nameLabel = ClickThroughLabel(labelWithString: "")
     private let promptMenu = NSMenu()
-    private var runWidthConstraint: NSLayoutConstraint!
     private var profiles: [PromptProfile] = []
     private var selectedPromptID: UUID?
     private var anchorRect: CGRect?
@@ -41,15 +41,20 @@ final class SelectionTriggerPanel: NSPanel {
 
         runButton.bezelStyle = .accessoryBarAction
         runButton.showsBorderOnlyWhileMouseInside = true
-        runButton.font = .systemFont(ofSize: 12, weight: .semibold)
-        runButton.alignment = .left
-        runButton.cell?.lineBreakMode = .byTruncatingTail
         runButton.target = self
         runButton.action = #selector(runSelectedPrompt)
+        runButton.translatesAutoresizingMaskIntoConstraints = false
+
+        nameLabel.font = .systemFont(ofSize: 12, weight: .semibold)
+        nameLabel.textColor = .labelColor
+        nameLabel.lineBreakMode = .byTruncatingTail
+        nameLabel.setAccessibilityElement(false)
+        nameLabel.translatesAutoresizingMaskIntoConstraints = false
 
         menuButton.bezelStyle = .accessoryBarAction
         menuButton.showsBorderOnlyWhileMouseInside = true
-        menuButton.image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: L10n.string("Prompts"))
+        menuButton.image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: L10n.string("Prompts"))?
+            .withSymbolConfiguration(.init(pointSize: 9, weight: .medium))
         menuButton.imagePosition = .imageOnly
         menuButton.contentTintColor = .secondaryLabelColor
         menuButton.setAccessibilityLabel(L10n.string("Prompts"))
@@ -57,23 +62,23 @@ final class SelectionTriggerPanel: NSPanel {
         menuButton.target = self
         menuButton.action = #selector(openPromptMenu)
 
-        let row = NSStackView(views: [runButton, menuButton])
-        row.orientation = .horizontal
-        row.alignment = .centerY
-        row.spacing = 0
-        row.translatesAutoresizingMaskIntoConstraints = false
-        effect.addSubview(row)
+        menuButton.translatesAutoresizingMaskIntoConstraints = false
+        effect.addSubview(runButton)
+        effect.addSubview(nameLabel)
+        effect.addSubview(menuButton)
 
-        runWidthConstraint = runButton.widthAnchor.constraint(equalToConstant: 70)
         NSLayoutConstraint.activate([
-            row.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: 8),
-            row.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -6),
-            row.topAnchor.constraint(equalTo: effect.topAnchor, constant: 4),
-            row.bottomAnchor.constraint(equalTo: effect.bottomAnchor, constant: -4),
-            runWidthConstraint,
-            runButton.heightAnchor.constraint(equalTo: row.heightAnchor),
-            menuButton.widthAnchor.constraint(equalToConstant: 26),
-            menuButton.heightAnchor.constraint(equalTo: row.heightAnchor)
+            runButton.leadingAnchor.constraint(equalTo: effect.leadingAnchor),
+            runButton.trailingAnchor.constraint(equalTo: effect.trailingAnchor),
+            runButton.topAnchor.constraint(equalTo: effect.topAnchor),
+            runButton.bottomAnchor.constraint(equalTo: effect.bottomAnchor),
+            nameLabel.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: 10),
+            nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: menuButton.leadingAnchor, constant: -4),
+            nameLabel.centerYAnchor.constraint(equalTo: effect.centerYAnchor),
+            menuButton.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -3),
+            menuButton.topAnchor.constraint(equalTo: effect.topAnchor, constant: 3),
+            menuButton.bottomAnchor.constraint(equalTo: effect.bottomAnchor, constant: -3),
+            menuButton.widthAnchor.constraint(equalToConstant: 26)
         ])
     }
 
@@ -132,7 +137,7 @@ final class SelectionTriggerPanel: NSPanel {
 
     private func updateButtons() {
         let name = profiles.first(where: { $0.id == selectedPromptID })?.name ?? ""
-        runButton.title = name
+        nameLabel.stringValue = name
         runButton.isEnabled = selectedPromptID != nil
         menuButton.isEnabled = !profiles.isEmpty
         let description = L10n.format("Run %@", name)
@@ -142,10 +147,9 @@ final class SelectionTriggerPanel: NSPanel {
 
     private func updatePlacement() {
         let name = profiles.first(where: { $0.id == selectedPromptID })?.name ?? ""
-        let font = runButton.font ?? NSFont.systemFont(ofSize: 12)
+        let font = nameLabel.font ?? NSFont.systemFont(ofSize: 12)
         let nameWidth = (name as NSString).size(withAttributes: [.font: font]).width
         let runWidth = min(max(ceil(nameWidth) + 18, 64), 200)
-        runWidthConstraint.constant = runWidth
         let panelSize = NSSize(width: runWidth + 26 + 14, height: 32)
         setContentSize(panelSize)
         setFrameOrigin(
@@ -161,4 +165,8 @@ final class SelectionTriggerPanel: NSPanel {
 
 private final class FirstMouseButton: NSButton {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
+private final class ClickThroughLabel: NSTextField {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
