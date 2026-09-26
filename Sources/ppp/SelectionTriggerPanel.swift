@@ -39,6 +39,7 @@ final class SelectionTriggerPanel: NSPanel {
 
         actionControl.segmentCount = 2
         actionControl.trackingMode = .momentary
+        actionControl.segmentStyle = .texturedSquare
         actionControl.segmentDistribution = .fit
         actionControl.controlSize = .small
         actionControl.setImage(
