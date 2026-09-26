@@ -5,7 +5,9 @@ final class SelectionTriggerPanel: NSPanel {
     var onReview: (() -> Void)?
     var onPromptSelection: ((UUID) -> Void)?
 
-    private let actionControl = FirstMouseSegmentedControl()
+    private let runButton = FirstMouseButton()
+    private let menuButton = FirstMouseButton()
+    private let nameLabel = ClickThroughLabel(labelWithString: "")
     private let promptMenu = NSMenu()
     private var profiles: [PromptProfile] = []
     private var selectedPromptID: UUID?
@@ -14,7 +16,7 @@ final class SelectionTriggerPanel: NSPanel {
 
     init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 120, height: 34),
+            contentRect: NSRect(x: 0, y: 0, width: 130, height: 36),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -33,30 +35,52 @@ final class SelectionTriggerPanel: NSPanel {
         effect.blendingMode = .behindWindow
         effect.state = .active
         effect.wantsLayer = true
-        effect.layer?.cornerRadius = 9
+        effect.layer?.cornerRadius = 12
         effect.layer?.masksToBounds = true
         contentView = effect
 
-        actionControl.segmentCount = 2
-        actionControl.trackingMode = .momentary
-        actionControl.segmentDistribution = .fit
-        actionControl.controlSize = .small
-        actionControl.setImage(
-            NSImage(systemSymbolName: "chevron.down", accessibilityDescription: L10n.string("Prompts")),
-            forSegment: 1
-        )
-        actionControl.setWidth(28, forSegment: 1)
-        actionControl.setToolTip(L10n.string("Prompts"), forSegment: 1)
-        actionControl.target = self
-        actionControl.action = #selector(segmentClicked(_:))
-        actionControl.translatesAutoresizingMaskIntoConstraints = false
-        effect.addSubview(actionControl)
+        runButton.title = ""
+        runButton.bezelStyle = .toolbar
+        runButton.showsBorderOnlyWhileMouseInside = true
+        runButton.target = self
+        runButton.action = #selector(runSelectedPrompt)
+        runButton.translatesAutoresizingMaskIntoConstraints = false
+
+        nameLabel.font = .systemFont(ofSize: 12, weight: .semibold)
+        nameLabel.alignment = .left
+        nameLabel.textColor = .labelColor
+        nameLabel.lineBreakMode = .byTruncatingTail
+        nameLabel.setAccessibilityElement(false)
+        nameLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        menuButton.bezelStyle = .toolbar
+        menuButton.showsBorderOnlyWhileMouseInside = true
+        menuButton.image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: L10n.string("Prompts"))?
+            .withSymbolConfiguration(.init(pointSize: 9, weight: .medium))
+        menuButton.imagePosition = .imageOnly
+        menuButton.contentTintColor = .secondaryLabelColor
+        menuButton.setAccessibilityLabel(L10n.string("Prompts"))
+        menuButton.toolTip = L10n.string("Prompts")
+        menuButton.target = self
+        menuButton.action = #selector(openPromptMenu)
+
+        menuButton.translatesAutoresizingMaskIntoConstraints = false
+        effect.addSubview(runButton)
+        effect.addSubview(nameLabel)
+        effect.addSubview(menuButton)
 
         NSLayoutConstraint.activate([
-            actionControl.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: 6),
-            actionControl.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -6),
-            actionControl.topAnchor.constraint(equalTo: effect.topAnchor, constant: 5),
-            actionControl.bottomAnchor.constraint(equalTo: effect.bottomAnchor, constant: -5)
+            runButton.leadingAnchor.constraint(equalTo: effect.leadingAnchor),
+            runButton.trailingAnchor.constraint(equalTo: effect.trailingAnchor),
+            runButton.topAnchor.constraint(equalTo: effect.topAnchor),
+            runButton.bottomAnchor.constraint(equalTo: effect.bottomAnchor),
+            nameLabel.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: 10),
+            nameLabel.trailingAnchor.constraint(equalTo: menuButton.leadingAnchor, constant: -4),
+            nameLabel.centerYAnchor.constraint(equalTo: effect.centerYAnchor),
+            menuButton.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -3),
+            menuButton.topAnchor.constraint(equalTo: effect.topAnchor, constant: 3),
+            menuButton.bottomAnchor.constraint(equalTo: effect.bottomAnchor, constant: -3),
+            menuButton.widthAnchor.constraint(equalToConstant: 26)
         ])
     }
 
@@ -75,24 +99,19 @@ final class SelectionTriggerPanel: NSPanel {
         anchorRect = accessibilityRect
         self.reservedPlacementHeight = reservedPlacementHeight
         rebuildPromptMenu()
-        updateControl()
+        updateButtons()
         updatePlacement()
         orderFrontRegardless()
     }
 
-    @objc private func segmentClicked(_ sender: NSSegmentedControl) {
-        switch sender.selectedSegment {
-        case 0 where selectedPromptID != nil:
-            onReview?()
-        case 1 where !promptMenu.items.isEmpty:
-            promptMenu.popUp(
-                positioning: nil,
-                at: NSPoint(x: sender.bounds.maxX - sender.width(forSegment: 1), y: 0),
-                in: sender
-            )
-        default:
-            break
-        }
+    @objc private func runSelectedPrompt() {
+        guard selectedPromptID != nil else { return }
+        onReview?()
+    }
+
+    @objc private func openPromptMenu() {
+        guard !promptMenu.items.isEmpty else { return }
+        promptMenu.popUp(positioning: nil, at: .zero, in: menuButton)
     }
 
     @objc private func selectPrompt(_ item: NSMenuItem) {
@@ -102,7 +121,7 @@ final class SelectionTriggerPanel: NSPanel {
         for menuItem in promptMenu.items {
             menuItem.state = (menuItem.representedObject as? UUID == id) ? .on : .off
         }
-        updateControl()
+        updateButtons()
         updatePlacement()
         onPromptSelection?(id)
     }
@@ -118,21 +137,22 @@ final class SelectionTriggerPanel: NSPanel {
         }
     }
 
-    private func updateControl() {
+    private func updateButtons() {
         let name = profiles.first(where: { $0.id == selectedPromptID })?.name ?? ""
-        actionControl.setLabel(name, forSegment: 0)
-        actionControl.setToolTip(L10n.format("Run %@", name), forSegment: 0)
-        actionControl.setEnabled(selectedPromptID != nil, forSegment: 0)
-        actionControl.setEnabled(!profiles.isEmpty, forSegment: 1)
+        nameLabel.stringValue = name
+        runButton.isEnabled = selectedPromptID != nil
+        menuButton.isEnabled = !profiles.isEmpty
+        let description = L10n.format("Run %@", name)
+        runButton.setAccessibilityLabel(description)
+        runButton.toolTip = description
     }
 
     private func updatePlacement() {
         let name = profiles.first(where: { $0.id == selectedPromptID })?.name ?? ""
-        let font = actionControl.font ?? NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        let font = nameLabel.font ?? NSFont.systemFont(ofSize: 12)
         let nameWidth = (name as NSString).size(withAttributes: [.font: font]).width
-        let promptWidth = min(max(ceil(nameWidth) + 24, 64), 200)
-        actionControl.setWidth(promptWidth, forSegment: 0)
-        let panelSize = NSSize(width: promptWidth + 28 + 12, height: actionControl.fittingSize.height + 10)
+        let runWidth = min(max(ceil(nameWidth) + 16, 44), 200)
+        let panelSize = NSSize(width: runWidth + 26 + 14, height: 36)
         setContentSize(panelSize)
         setFrameOrigin(
             PanelPositioning.origin(
@@ -145,6 +165,10 @@ final class SelectionTriggerPanel: NSPanel {
     }
 }
 
-private final class FirstMouseSegmentedControl: NSSegmentedControl {
+private final class FirstMouseButton: NSButton {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
+private final class ClickThroughLabel: NSTextField {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
