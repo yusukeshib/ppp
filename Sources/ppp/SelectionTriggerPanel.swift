@@ -41,9 +41,11 @@ final class SelectionTriggerPanel: NSPanel {
         actionControl.trackingMode = .momentary
         actionControl.segmentDistribution = .fit
         actionControl.controlSize = .small
-        actionControl.setLabel("", forSegment: 1)
+        actionControl.setImage(
+            NSImage(systemSymbolName: "chevron.down", accessibilityDescription: L10n.string("Prompts")),
+            forSegment: 1
+        )
         actionControl.setWidth(28, forSegment: 1)
-        actionControl.setShowsMenuIndicator(true, forSegment: 1)
         actionControl.setMenu(promptMenu, forSegment: 1)
         actionControl.setToolTip(L10n.string("Prompts"), forSegment: 1)
         actionControl.target = self
