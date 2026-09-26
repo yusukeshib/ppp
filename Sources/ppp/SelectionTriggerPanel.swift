@@ -40,7 +40,7 @@ final class SelectionTriggerPanel: NSPanel {
         contentView = effect
 
         runButton.title = ""
-        runButton.bezelStyle = .accessoryBarAction
+        runButton.bezelStyle = .toolbar
         runButton.showsBorderOnlyWhileMouseInside = true
         runButton.target = self
         runButton.action = #selector(runSelectedPrompt)
@@ -53,7 +53,7 @@ final class SelectionTriggerPanel: NSPanel {
         nameLabel.setAccessibilityElement(false)
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        menuButton.bezelStyle = .accessoryBarAction
+        menuButton.bezelStyle = .toolbar
         menuButton.showsBorderOnlyWhileMouseInside = true
         menuButton.image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: L10n.string("Prompts"))?
             .withSymbolConfiguration(.init(pointSize: 9, weight: .medium))
