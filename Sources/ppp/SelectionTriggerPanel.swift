@@ -39,14 +39,16 @@ final class SelectionTriggerPanel: NSPanel {
         effect.layer?.masksToBounds = true
         contentView = effect
 
-        runButton.isBordered = false
+        runButton.bezelStyle = .accessoryBarAction
+        runButton.showsBorderOnlyWhileMouseInside = true
         runButton.font = .systemFont(ofSize: 12, weight: .semibold)
         runButton.alignment = .left
         runButton.cell?.lineBreakMode = .byTruncatingTail
         runButton.target = self
         runButton.action = #selector(runSelectedPrompt)
 
-        menuButton.isBordered = false
+        menuButton.bezelStyle = .accessoryBarAction
+        menuButton.showsBorderOnlyWhileMouseInside = true
         menuButton.image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: L10n.string("Prompts"))
         menuButton.imagePosition = .imageOnly
         menuButton.contentTintColor = .secondaryLabelColor
