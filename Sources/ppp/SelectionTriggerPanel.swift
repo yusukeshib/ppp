@@ -15,7 +15,7 @@ final class SelectionTriggerPanel: NSPanel {
 
     init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 140, height: 36),
+            contentRect: NSRect(x: 0, y: 0, width: 96, height: 32),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -66,12 +66,12 @@ final class SelectionTriggerPanel: NSPanel {
 
         NSLayoutConstraint.activate([
             segments.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: 4),
-            segments.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -10),
+            segments.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -8),
             segments.topAnchor.constraint(equalTo: effect.topAnchor, constant: 2),
             segments.bottomAnchor.constraint(equalTo: effect.bottomAnchor, constant: -2),
             runButton.widthAnchor.constraint(equalToConstant: 32),
             runButton.heightAnchor.constraint(equalTo: segments.heightAnchor),
-            pickerButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 88),
+            pickerButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 42),
             pickerButton.heightAnchor.constraint(equalTo: segments.heightAnchor),
             divider.widthAnchor.constraint(equalToConstant: 1),
             divider.heightAnchor.constraint(equalToConstant: 18)
@@ -125,8 +125,8 @@ final class SelectionTriggerPanel: NSPanel {
         let nameWidth = (name as NSString).size(withAttributes: [
             .font: NSFont.systemFont(ofSize: 12, weight: .semibold)
         ]).width
-        let width = min(max(ceil(nameWidth) + 66, 140), 248)
-        let panelSize = NSSize(width: width, height: 36)
+        let width = min(max(ceil(nameWidth) + 58, 96), 240)
+        let panelSize = NSSize(width: width, height: 32)
         setContentSize(panelSize)
         setFrameOrigin(
             PanelPositioning.origin(
