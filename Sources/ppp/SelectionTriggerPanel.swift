@@ -5,7 +5,7 @@ final class SelectionTriggerPanel: NSPanel {
     var onReview: (() -> Void)?
     var onPromptSelection: ((UUID) -> Void)?
 
-    private let actionControl = NSSegmentedControl()
+    private let actionControl = FirstMouseSegmentedControl()
     private let promptMenu = NSMenu()
     private var profiles: [PromptProfile] = []
     private var selectedPromptID: UUID?
@@ -46,7 +46,6 @@ final class SelectionTriggerPanel: NSPanel {
             forSegment: 1
         )
         actionControl.setWidth(28, forSegment: 1)
-        actionControl.setMenu(promptMenu, forSegment: 1)
         actionControl.setToolTip(L10n.string("Prompts"), forSegment: 1)
         actionControl.target = self
         actionControl.action = #selector(segmentClicked(_:))
@@ -82,8 +81,18 @@ final class SelectionTriggerPanel: NSPanel {
     }
 
     @objc private func segmentClicked(_ sender: NSSegmentedControl) {
-        guard sender.selectedSegment == 0, selectedPromptID != nil else { return }
-        onReview?()
+        switch sender.selectedSegment {
+        case 0 where selectedPromptID != nil:
+            onReview?()
+        case 1 where !promptMenu.items.isEmpty:
+            promptMenu.popUp(
+                positioning: nil,
+                at: NSPoint(x: sender.bounds.maxX - sender.widthForSegment(1), y: 0),
+                in: sender
+            )
+        default:
+            break
+        }
     }
 
     @objc private func selectPrompt(_ item: NSMenuItem) {
@@ -134,4 +143,8 @@ final class SelectionTriggerPanel: NSPanel {
             )
         )
     }
+}
+
+private final class FirstMouseSegmentedControl: NSSegmentedControl {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
