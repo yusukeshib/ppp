@@ -15,7 +15,7 @@ final class SelectionTriggerPanel: NSPanel {
 
     init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 152, height: 44),
+            contentRect: NSRect(x: 0, y: 0, width: 140, height: 36),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -41,20 +41,15 @@ final class SelectionTriggerPanel: NSPanel {
         let symbolSize = NSImage.SymbolConfiguration(pointSize: 10, weight: .semibold)
         runButton.image = NSImage(systemSymbolName: "play.fill", accessibilityDescription: nil)?
             .withSymbolConfiguration(symbolSize)
-        runButton.imagePosition = .imageLeading
-        runButton.alignment = .left
-        runButton.font = .systemFont(ofSize: 12, weight: .semibold)
-        runButton.cell?.lineBreakMode = .byTruncatingTail
+        runButton.imagePosition = .imageOnly
         runButton.target = self
         runButton.action = #selector(runSelectedPrompt)
 
-        pickerButton.image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: nil)?
-            .withSymbolConfiguration(symbolSize)
-        pickerButton.imagePosition = .imageOnly
+        pickerButton.alignment = .left
+        pickerButton.font = .systemFont(ofSize: 12, weight: .semibold)
+        pickerButton.cell?.lineBreakMode = .byTruncatingTail
         pickerButton.target = self
         pickerButton.action = #selector(openPromptMenu)
-        pickerButton.setAccessibilityLabel(L10n.string("Prompts"))
-        pickerButton.toolTip = L10n.string("Prompts")
 
         let divider = NSBox()
         divider.boxType = .separator
@@ -65,30 +60,18 @@ final class SelectionTriggerPanel: NSPanel {
         segments.alignment = .centerY
         segments.spacing = 0
         segments.translatesAutoresizingMaskIntoConstraints = false
-        runButton.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        pickerButton.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        let container = NSView()
-        container.wantsLayer = true
-        container.layer?.cornerRadius = 7
-        container.layer?.borderWidth = 1
-        container.layer?.borderColor = NSColor.labelColor.withAlphaComponent(0.18).cgColor
-        container.layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.07).cgColor
-        container.translatesAutoresizingMaskIntoConstraints = false
-        effect.addSubview(container)
-        container.addSubview(segments)
+        effect.addSubview(segments)
 
         NSLayoutConstraint.activate([
-            container.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: 6),
-            container.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -6),
-            container.topAnchor.constraint(equalTo: effect.topAnchor, constant: 6),
-            container.bottomAnchor.constraint(equalTo: effect.bottomAnchor, constant: -6),
-            segments.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 8),
-            segments.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            segments.topAnchor.constraint(equalTo: container.topAnchor),
-            segments.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            runButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 88),
+            segments.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: 4),
+            segments.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -10),
+            segments.topAnchor.constraint(equalTo: effect.topAnchor, constant: 2),
+            segments.bottomAnchor.constraint(equalTo: effect.bottomAnchor, constant: -2),
+            runButton.widthAnchor.constraint(equalToConstant: 32),
             runButton.heightAnchor.constraint(equalTo: segments.heightAnchor),
-            pickerButton.widthAnchor.constraint(equalToConstant: 32),
+            pickerButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 88),
             pickerButton.heightAnchor.constraint(equalTo: segments.heightAnchor),
             divider.widthAnchor.constraint(equalToConstant: 1),
             divider.heightAnchor.constraint(equalToConstant: 18)
@@ -142,8 +125,8 @@ final class SelectionTriggerPanel: NSPanel {
         let nameWidth = (name as NSString).size(withAttributes: [
             .font: NSFont.systemFont(ofSize: 12, weight: .semibold)
         ]).width
-        let width = min(max(ceil(nameWidth) + 78, 152), 260)
-        let panelSize = NSSize(width: width, height: 44)
+        let width = min(max(ceil(nameWidth) + 66, 140), 248)
+        let panelSize = NSSize(width: width, height: 36)
         setContentSize(panelSize)
         setFrameOrigin(
             PanelPositioning.origin(
@@ -168,12 +151,14 @@ final class SelectionTriggerPanel: NSPanel {
 
     private func updateRunButton() {
         let name = profiles.first(where: { $0.id == selectedPromptID })?.name ?? ""
-        runButton.title = name
+        pickerButton.title = name
         runButton.isEnabled = selectedPromptID != nil
         pickerButton.isEnabled = !profiles.isEmpty
         let description = L10n.format("Run %@", name)
         runButton.setAccessibilityLabel(description)
         runButton.toolTip = description
+        pickerButton.setAccessibilityLabel("\(L10n.string("Prompts")): \(name)")
+        pickerButton.toolTip = L10n.string("Prompts")
     }
 }
 
@@ -198,6 +183,10 @@ private final class TriggerSegmentButton: NSButton {
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: .pointingHand)
+    }
 
     override func updateTrackingAreas() {
         if let tracking { removeTrackingArea(tracking) }
