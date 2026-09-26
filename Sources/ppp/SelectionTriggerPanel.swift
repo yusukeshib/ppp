@@ -16,7 +16,7 @@ final class SelectionTriggerPanel: NSPanel {
 
     init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 110, height: 32),
+            contentRect: NSRect(x: 0, y: 0, width: 130, height: 36),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -47,6 +47,7 @@ final class SelectionTriggerPanel: NSPanel {
         runButton.translatesAutoresizingMaskIntoConstraints = false
 
         nameLabel.font = .systemFont(ofSize: 12, weight: .semibold)
+        nameLabel.alignment = .left
         nameLabel.textColor = .labelColor
         nameLabel.lineBreakMode = .byTruncatingTail
         nameLabel.setAccessibilityElement(false)
@@ -74,7 +75,7 @@ final class SelectionTriggerPanel: NSPanel {
             runButton.topAnchor.constraint(equalTo: effect.topAnchor),
             runButton.bottomAnchor.constraint(equalTo: effect.bottomAnchor),
             nameLabel.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: 10),
-            nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: menuButton.leadingAnchor, constant: -4),
+            nameLabel.trailingAnchor.constraint(equalTo: menuButton.leadingAnchor, constant: -4),
             nameLabel.centerYAnchor.constraint(equalTo: effect.centerYAnchor),
             menuButton.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -3),
             menuButton.topAnchor.constraint(equalTo: effect.topAnchor, constant: 3),
@@ -150,8 +151,8 @@ final class SelectionTriggerPanel: NSPanel {
         let name = profiles.first(where: { $0.id == selectedPromptID })?.name ?? ""
         let font = nameLabel.font ?? NSFont.systemFont(ofSize: 12)
         let nameWidth = (name as NSString).size(withAttributes: [.font: font]).width
-        let runWidth = min(max(ceil(nameWidth) + 18, 64), 200)
-        let panelSize = NSSize(width: runWidth + 26 + 14, height: 32)
+        let runWidth = min(max(ceil(nameWidth) + 18, 90), 200)
+        let panelSize = NSSize(width: runWidth + 26 + 14, height: 36)
         setContentSize(panelSize)
         setFrameOrigin(
             PanelPositioning.origin(
