@@ -87,7 +87,7 @@ final class SelectionTriggerPanel: NSPanel {
         case 1 where !promptMenu.items.isEmpty:
             promptMenu.popUp(
                 positioning: nil,
-                at: NSPoint(x: sender.bounds.maxX - sender.widthForSegment(1), y: 0),
+                at: NSPoint(x: sender.bounds.maxX - sender.width(forSegment: 1), y: 0),
                 in: sender
             )
         default:
