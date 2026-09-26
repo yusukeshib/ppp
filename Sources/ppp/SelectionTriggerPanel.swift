@@ -151,7 +151,7 @@ final class SelectionTriggerPanel: NSPanel {
         let name = profiles.first(where: { $0.id == selectedPromptID })?.name ?? ""
         let font = nameLabel.font ?? NSFont.systemFont(ofSize: 12)
         let nameWidth = (name as NSString).size(withAttributes: [.font: font]).width
-        let runWidth = min(max(ceil(nameWidth) + 18, 60), 200)
+        let runWidth = min(max(ceil(nameWidth) + 16, 44), 200)
         let panelSize = NSSize(width: runWidth + 26 + 14, height: 36)
         setContentSize(panelSize)
         setFrameOrigin(
