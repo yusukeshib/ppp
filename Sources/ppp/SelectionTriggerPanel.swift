@@ -5,8 +5,7 @@ final class SelectionTriggerPanel: NSPanel {
     var onReview: (() -> Void)?
     var onPromptSelection: ((UUID) -> Void)?
 
-    private let promptButton = NSButton()
-    private let runButton = NSButton()
+    private let actionControl = NSSegmentedControl()
     private let promptMenu = NSMenu()
     private var profiles: [PromptProfile] = []
     private var selectedPromptID: UUID?
@@ -15,7 +14,7 @@ final class SelectionTriggerPanel: NSPanel {
 
     init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 150, height: 38),
+            contentRect: NSRect(x: 0, y: 0, width: 120, height: 34),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -38,32 +37,25 @@ final class SelectionTriggerPanel: NSPanel {
         effect.layer?.masksToBounds = true
         contentView = effect
 
-        promptButton.bezelStyle = .rounded
-        promptButton.controlSize = .small
-        promptButton.cell?.lineBreakMode = .byTruncatingTail
-        promptButton.target = self
-        promptButton.action = #selector(openPromptMenu)
-        promptButton.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-
-        runButton.title = L10n.string("Run")
-        runButton.bezelStyle = .rounded
-        runButton.controlSize = .small
-        runButton.target = self
-        runButton.action = #selector(runSelectedPrompt)
-
-        let stack = NSStackView(views: [promptButton, runButton])
-        stack.orientation = .horizontal
-        stack.alignment = .centerY
-        stack.spacing = 6
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        effect.addSubview(stack)
+        actionControl.segmentCount = 2
+        actionControl.trackingMode = .momentary
+        actionControl.segmentDistribution = .fit
+        actionControl.controlSize = .small
+        actionControl.setLabel("", forSegment: 1)
+        actionControl.setWidth(28, forSegment: 1)
+        actionControl.setShowsMenuIndicator(true, forSegment: 1)
+        actionControl.setMenu(promptMenu, forSegment: 1)
+        actionControl.setToolTip(L10n.string("Prompts"), forSegment: 1)
+        actionControl.target = self
+        actionControl.action = #selector(segmentClicked(_:))
+        actionControl.translatesAutoresizingMaskIntoConstraints = false
+        effect.addSubview(actionControl)
 
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: 6),
-            stack.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -6),
-            stack.topAnchor.constraint(equalTo: effect.topAnchor, constant: 5),
-            stack.bottomAnchor.constraint(equalTo: effect.bottomAnchor, constant: -5),
-            promptButton.widthAnchor.constraint(lessThanOrEqualToConstant: 200)
+            actionControl.leadingAnchor.constraint(equalTo: effect.leadingAnchor, constant: 6),
+            actionControl.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -6),
+            actionControl.topAnchor.constraint(equalTo: effect.topAnchor, constant: 5),
+            actionControl.bottomAnchor.constraint(equalTo: effect.bottomAnchor, constant: -5)
         ])
     }
 
@@ -82,19 +74,14 @@ final class SelectionTriggerPanel: NSPanel {
         anchorRect = accessibilityRect
         self.reservedPlacementHeight = reservedPlacementHeight
         rebuildPromptMenu()
-        updateButtons()
+        updateControl()
         updatePlacement()
         orderFrontRegardless()
     }
 
-    @objc private func runSelectedPrompt() {
-        guard selectedPromptID != nil else { return }
+    @objc private func segmentClicked(_ sender: NSSegmentedControl) {
+        guard sender.selectedSegment == 0, selectedPromptID != nil else { return }
         onReview?()
-    }
-
-    @objc private func openPromptMenu() {
-        guard !promptMenu.items.isEmpty else { return }
-        promptMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: 0), in: promptButton)
     }
 
     @objc private func selectPrompt(_ item: NSMenuItem) {
@@ -104,7 +91,7 @@ final class SelectionTriggerPanel: NSPanel {
         for menuItem in promptMenu.items {
             menuItem.state = (menuItem.representedObject as? UUID == id) ? .on : .off
         }
-        updateButtons()
+        updateControl()
         updatePlacement()
         onPromptSelection?(id)
     }
@@ -120,22 +107,21 @@ final class SelectionTriggerPanel: NSPanel {
         }
     }
 
-    private func updateButtons() {
+    private func updateControl() {
         let name = profiles.first(where: { $0.id == selectedPromptID })?.name ?? ""
-        promptButton.title = name
-        promptButton.isEnabled = selectedPromptID != nil
-        promptButton.setAccessibilityLabel("\(L10n.string("Prompts")): \(name)")
-        runButton.isEnabled = selectedPromptID != nil
-        let description = L10n.format("Run %@", name)
-        runButton.setAccessibilityLabel(description)
-        runButton.toolTip = description
+        actionControl.setLabel(name, forSegment: 0)
+        actionControl.setToolTip(L10n.format("Run %@", name), forSegment: 0)
+        actionControl.setEnabled(selectedPromptID != nil, forSegment: 0)
+        actionControl.setEnabled(!profiles.isEmpty, forSegment: 1)
     }
 
     private func updatePlacement() {
-        let promptWidth = min(max(promptButton.fittingSize.width, 64), 200)
-        let width = promptWidth + runButton.fittingSize.width + 18
-        let height = max(promptButton.fittingSize.height, runButton.fittingSize.height) + 10
-        let panelSize = NSSize(width: width, height: height)
+        let name = profiles.first(where: { $0.id == selectedPromptID })?.name ?? ""
+        let font = actionControl.font ?? NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        let nameWidth = (name as NSString).size(withAttributes: [.font: font]).width
+        let promptWidth = min(max(ceil(nameWidth) + 24, 64), 200)
+        actionControl.setWidth(promptWidth, forSegment: 0)
+        let panelSize = NSSize(width: promptWidth + 28 + 12, height: actionControl.fittingSize.height + 10)
         setContentSize(panelSize)
         setFrameOrigin(
             PanelPositioning.origin(
