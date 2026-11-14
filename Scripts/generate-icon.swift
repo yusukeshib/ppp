@@ -42,6 +42,7 @@ color(0.36, 0.33, 0.85).setFill()
 tile.fill()
 
 // A single solid speech bubble: rounded body plus a small tail at the bottom left.
+// Keep in sync with Sources/ppp/StatusBarIcon.swift (menu bar icon).
 let bubble = NSBezierPath(
     roundedRect: NSRect(x: 262, y: 362, width: 500, height: 340),
     xRadius: 120,

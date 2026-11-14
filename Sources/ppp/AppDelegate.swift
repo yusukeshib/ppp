@@ -81,7 +81,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "text.bubble", accessibilityDescription: "ppp")
+            button.image = StatusBarIcon.make(accessibilityDescription: "ppp")
             button.toolTip = "ppp"
         }
 
